@@ -159,3 +159,11 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 *.csv
+Datasets/Originals/README_nari_dynamic.png
+Datasets/Originals/README_nari_dynamic_aton.png
+Datasets/Originals/README_nari_dynamic_sar.png
+Datasets/Originals/README_parameters.txt
+Datasets/ref-countries-2020-01m.geojson/CNTR_BN_01M_2020_3035.geojson
+*.geojson
+Figures/heatmap.png
+Figures/nb-vs-ts.png
