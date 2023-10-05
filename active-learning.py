@@ -1,24 +1,32 @@
 from learner import Learner
 from labeler import Labeler
 
+#%% Instantiations and Definitions
 
-learner = Learner()
-labeler = Labeler()
+batchSize = 5
 
+learner = Learner(seed=None, batchSize=batchSize)
+labeler = Labeler(batchSize=batchSize)
 
-labels = {}
-for ID in learner.getRandomQuery():
-    labels.update(labeler.askLabel(ID))
-learner.setLabels(labels)
-learner.fitModel()
+batchCounter = 0
 
-# here we should carry some model evaluation, e.g. learner.evaluate()
-
-while True:
+def cycle(queryMethod, batchCounter):
+    
     labels = {}
-    for ID in learner.getQuery():
-        labels.update(labeler.askLabel(ID))
+    query = queryMethod()
+    for i in range(len(query)):
+        labels.update(labeler.askLabel(query[i], batch=batchCounter, batchProgress=i+1))
     learner.setLabels(labels)
     learner.fitModel()
     
     # here we should carry some model evaluation, e.g. learner.evaluate()
+
+#%% Active Learning Loop
+
+batchCounter += 1
+cycle(learner.getRandomQuery, batchCounter)
+
+while True:
+    
+   batchCounter += 1
+   cycle(learner.getQuery, batchCounter)

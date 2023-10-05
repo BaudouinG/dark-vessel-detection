@@ -31,7 +31,7 @@ reappearIcon = folium.features.CustomIcon(icon_image='Markers/v.png', icon_size=
 
 class Labeler():
     
-    def __init__(self):
+    def __init__(self, batchSize=None):
         
         # "Backend" params
         self.preventLabeling = pn.widgets.Toggle(value=True)
@@ -58,30 +58,73 @@ class Labeler():
         self.infos = pn.bind(self.getInfos, self.IDSelector, self.previousSlider, self.nextSlider)
         self.foliumMap = pn.bind(self.getFoliumMap, self.IDSelector, self.previousSlider, self.nextSlider)
         
-        buttons = pn.Row(self.OOSButton, self.otherButton)
-        controls = pn.WidgetBox(self.IDSelector, self.previousSlider, self.nextSlider, self.infos, buttons)
-        main = pn.Row(controls, self.foliumMap)
+        # "Active Learning" params
+        self.batchSize = batchSize
+        self.batch = None
+        self.batchProgress = None
+        self.defaultStatus = 'Not currently labeling'
+        styles = {'border': '1px solid white', 'border-radius': '5px', 'color': 'white', 'padding': '10px'}
+        self.status = pn.pane.HTML(self.defaultStatus, styles=styles)
+        self.preventLabeling.param.watch(self.setStatus, 'value')
         
-        template = pn.template.BootstrapTemplate(title='AIS Labeler').servable()
-        template.main.append(main)
+        # Layout organisation and server start
+        self.buttons = pn.Row(self.OOSButton, self.otherButton)
+        self.controls = pn.WidgetBox(self.IDSelector, self.previousSlider, self.nextSlider, self.infos, self.buttons)
+        self.main = pn.Row(self.controls, self.foliumMap)
         
-        self.server = template.show(title='AIS Labeler', threaded=True)
+        self.template = pn.template.BootstrapTemplate(title='AIS Labeler').servable()
+        self.template.main.append(self.main)
+        self.template.header.append(self.status)
+        
+        self.server = self.template.show(title='AIS Labeler', threaded=True)
+    
+    # Active Learning" Methods
+    def setStatus(self, event):
+        
+        if event.new == True:
+            html = self.defaultStatus
+        else:
+            html = f"Batch {self.batch}, labeling {self.batchProgress}/{self.batchSize}"
+        self.status.object = html
     
     # "Backend" Methods
     def toggleLabeling(self, event):
         self.OOSButton.disabled = event.new
         self.otherButton.disabled = event.new
 
-    def toggleIDChange(self, event):
-        self.IDSelector.disabled = event.new
+    def toggleIDChange(self, event): self.IDSelector.disabled = event.new
     
     def labelAsOOS(self, event):
-        self.currentLabel.value = 1
+        self.confirmLabel(1)
         
     def labelAsOther(self, event):
+        self.confirmLabel(0)
+            
+    def confirmOOS(self, event):
+        self.currentLabel.value = 1
+        
+    def confirmOther(self, event):
         self.currentLabel.value = 0
     
-    def askLabel(self, gapID):
+    def back(self, event):
+        self.currentLabel.value = -1
+    
+    def confirmLabel(self, label):
+        self.buttons.clear()
+        self.isConfirmed = pn.widgets.Toggle(value=False)
+        self.escape = pn.widgets.Toggle(value=False)
+        self.confirmButton = pn.widgets.Button(name='confirm', button_type='primary')
+        self.backButton = pn.widgets.Button(name='return')
+        if label == 1:
+            self.confirmButton.on_click(self.confirmOOS)
+        else:
+            self.confirmButton.on_click(self.confirmOther)
+        self.backButton.on_click(self.back)
+        self.buttons.append(pn.Row(self.confirmButton, self.backButton))
+    
+    def askLabel(self, gapID, batch=None, batchProgress=None):
+        self.batch = batch
+        self.batchProgress = batchProgress
         self.preventIDChange.value = True
         self.preventLabeling.value = False
         self.currentLabel.value = None
@@ -89,15 +132,20 @@ class Labeler():
         self.IDSelector.value = int(gapID)
         
         while self.currentLabel.value is None:
-            sleep(0.1)
+            sleep(0.05)
             
-        self.preventIDChange.value = False
-        self.preventLabeling.value = True
-        label = self.currentLabel.value
-        ID = self.IDSelector.value
-        self.currentLabel.value = None
-        self.IDSelector.value = previousID
-        return {ID: label}
+        self.buttons.clear()
+        self.buttons.append(pn.Row(self.OOSButton, self.otherButton))
+        if self.currentLabel.value == -1:
+            return self.askLabel(gapID, batch=batch, batchProgress=batchProgress)
+        else:
+            self.preventIDChange.value = False
+            self.preventLabeling.value = True
+            label = self.currentLabel.value
+            ID = self.IDSelector.value
+            self.currentLabel.value = None
+            self.IDSelector.value = previousID
+            return {ID: label}
     
     # "Frontend" Methods
     def getData(self, gapID, previousReports, nextReports):
@@ -218,5 +266,3 @@ class Labeler():
             mapFeature.add_to(m)
             
         return pn.pane.plot.Folium(m, sizing_mode='stretch_both')
-    
-#l = Labeler()

@@ -1,21 +1,10 @@
-from matplotlib import pyplot as plt
 import numpy as np
-from time import time
-import pandas as pd
 import warnings
 
-from sklearn.datasets import load_digits
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
-from cardinal.uncertainty import MarginSampler
-from cardinal.clustering import KMeansSampler
-from cardinal.random import RandomSampler
-from cardinal.plotting import plot_confidence_interval
-from cardinal.base import BaseQuerySampler
 from cardinal.zhdanov2019 import TwoStepKMeansSampler
-from cardinal.utils import ActiveLearningSplitter
 
 from features import load, build
 
@@ -71,6 +60,3 @@ class Learner():
             self.sampler.fit(self.data[self.isLabeled()], self.labels[self.isLabeled()])
             
             return self.sampler.select_samples(self.data[np.logical_not(self.isLabeled())])
-
-
-#l = Learner()
