@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import geopandas as gpd
+import matplotlib.pyplot as plt
 import folium
 import panel as pn
 from utils import getValues, DATASETS_DIRECTORY_PATH
@@ -43,10 +44,11 @@ class Labeler():
         
         # "Frontend" params
         self.IDSelector = pn.widgets.IntInput(name='Gap ID', value=0, step=1, start=0, end=len(gaps)-1,
-                                         disabled=self.preventIDChange.value)
+                                         disabled=self.preventIDChange.value, width=100)
         self.previousSlider = pn.widgets.EditableIntSlider(name='Previous Positions', fixed_start=0, fixed_end=1000,
-                                                           value=200)
-        self.nextSlider = pn.widgets.EditableIntSlider(name='Next Positions', fixed_start=0, fixed_end=1000, value=200)
+                                                           value=200, sizing_mode='stretch_width')
+        self.nextSlider = pn.widgets.EditableIntSlider(name='Next Positions', fixed_start=0, fixed_end=1000,
+                                                       value=200, sizing_mode='stretch_width')
         self.OOSButton = pn.widgets.Button(name='On-Off Switch', button_type='danger', icon='alert-triangle-filled',
                                       disabled=self.preventLabeling.value)
         self.otherButton = pn.widgets.Button(name='Other', button_type='warning', icon='question-mark',
@@ -67,10 +69,13 @@ class Labeler():
         self.status = pn.pane.HTML(self.defaultStatus, styles=styles)
         self.preventLabeling.param.watch(self.setStatus, 'value')
         
+        self.dashboard = Dashboard()
+        
         # Layout organisation and server start
         self.buttons = pn.Row(self.OOSButton, self.otherButton)
-        self.controls = pn.WidgetBox(self.IDSelector, self.previousSlider, self.nextSlider, self.infos, self.buttons)
-        self.main = pn.Row(self.controls, self.foliumMap)
+        self.controls = pn.WidgetBox(self.IDSelector, self.previousSlider, self.nextSlider, self.infos,
+                                     self.buttons, max_width=300)
+        self.main = pn.Row(self.controls, self.foliumMap, self.dashboard)
         
         self.template = pn.template.BootstrapTemplate(title='AIS Labeler').servable()
         self.template.main.append(self.main)
@@ -145,6 +150,12 @@ class Labeler():
             ID = self.IDSelector.value
             self.currentLabel.value = None
             self.IDSelector.value = previousID
+            self.dashboard.labeledGaps += 1
+            if label == 1:
+                self.dashboard.OOSGaps += 1
+            else:
+                self.dashboard.otherGaps += 1
+            self.dashboard.update()
             return {ID: label}
     
     # "Frontend" Methods
@@ -179,7 +190,10 @@ class Labeler():
         md = '---\n' + toMarkdown(infos)
         
         def getDest():
-            staticReport = data['static'].loc[data['static'].timestamp <= data['gap'].disappeartime].iloc[-1]
+            try:
+                staticReport = data['static'].loc[data['static'].timestamp <= data['gap'].disappeartime].iloc[-1]
+            except IndexError:
+                return 'unknown'
             dest = str(staticReport.destination)
             if dest.strip() != '' and dest != 'nan':
                 age = data['gap'].disappeartime - staticReport.timestamp
@@ -195,7 +209,7 @@ class Labeler():
         infos['Minimum Average Speed'] = str(np.round(data['gap'].darkspeed, 2)) + ' kts'
         md += '\n\n---\n' + toMarkdown(infos) + '\n\n---\n'
         
-        return pn.pane.Markdown(md)
+        return pn.pane.Markdown(md, sizing_mode='stretch_width')
     
     
     def plot(self, data):
@@ -266,3 +280,59 @@ class Labeler():
             mapFeature.add_to(m)
             
         return pn.pane.plot.Folium(m, sizing_mode='stretch_both')
+
+class Dashboard(pn.layout.base.WidgetBox):
+    
+    def __init__(self):
+        
+        super().__init__(max_width=300)
+        plt.rcParams.update({'font.size': 8})
+        
+        self.labeledGaps = 0
+        self.OOSGaps = 0
+        self.otherGaps = 0
+        self.dataSize = len(gaps)
+
+        self.predictionHistory = [0]
+        self.accuracyHistory = [0]
+        self.totalOOS = 0
+        
+        self.update()
+        
+    def update(self, total=None, accuracy=None):
+        if total is not None:
+            self.predictionHistory.append(total / self.dataSize * 100)
+            self.totalOOS = total
+        if accuracy is not None:
+            self.accuracyHistory.append(sum(accuracy) / len(accuracy))
+        self.clear()
+        md = f'**Labeled Gaps:** {self.labeledGaps} ({self.OOSGaps} OOS, {self.otherGaps} Others)\n\n---\n'
+        md += f'**On-Off Switch Prediction:** {self.totalOOS}/{self.dataSize}'
+        self.append(pn.pane.Markdown(md, sizing_mode='stretch_width'))
+        self.append(self.predictionGraph())
+        self.append(pn.pane.Markdown('---\n**Prediction Accuracy**', sizing_mode='stretch_width'))
+        self.append(self.accuracyGraph())
+    
+    def predictionGraph(self):
+        fig, ax = plt.subplots(figsize=(3, 1), dpi=80)
+        ax.plot(np.arange(len(self.predictionHistory)), self.predictionHistory, lw=1, aa=True, zorder=3)
+        ax.fill_between(np.arange(len(self.predictionHistory)), self.predictionHistory, alpha=0.5, zorder=2)
+        ax.set_ylim(0, max(max(self.predictionHistory), 0.01))
+        ax.set_xlim(0, len(self.predictionHistory) - 1)
+        #ax.set_xticks(np.arange(len(self.predictionHistory)))
+        ax.set_xlabel('Batch Number')
+        ax.set_ylabel('Predicted OOS (%)')
+        plt.close(fig)
+        return pn.pane.Matplotlib(fig, tight=True, format='svg', sizing_mode='stretch_width')
+    
+    def accuracyGraph(self):
+        fig, ax = plt.subplots(figsize=(3, 1), dpi=80)
+        ax.plot(np.arange(len(self.accuracyHistory)), self.accuracyHistory, lw=1, aa=True, zorder=3)
+        ax.fill_between(np.arange(len(self.accuracyHistory)), self.accuracyHistory, alpha=0.5, zorder=2)
+        ax.set_ylim(0,1)
+        ax.set_xlim(0, len(self.accuracyHistory) - 1)
+        #ax.set_xticks(np.arange(len(self.accuracyHistory)))
+        ax.set_xlabel('Batch Number')
+        ax.set_ylabel('Accuracy')
+        plt.close(fig)
+        return pn.pane.Matplotlib(fig, tight=True, format='svg', sizing_mode='stretch_width')

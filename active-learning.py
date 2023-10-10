@@ -11,15 +11,34 @@ labeler = Labeler(batchSize=batchSize)
 batchCounter = 0
 
 def cycle(queryMethod, batchCounter):
+    print(f'entering batch{batchCounter}')
     
     labels = {}
     query = queryMethod()
+    
+    if batchCounter > 1:
+        prediction = {}
+        for ID in query:
+            prediction[ID] = int(learner.predict(learner.data[ID].reshape(1, -1))[0])
+    
     for i in range(len(query)):
-        labels.update(labeler.askLabel(query[i], batch=batchCounter, batchProgress=i+1))
+        answer = labeler.askLabel(query[i], batch=batchCounter, batchProgress=i+1)
+        labels.update(answer)
     learner.setLabels(labels)
     learner.fitModel()
     
-    # here we should carry some model evaluation, e.g. learner.evaluate()
+    total = learner.getPositiveTotal()
+    print('total: ', total)
+    if batchCounter > 1:
+        accuracy = []
+        for ID in labels.keys():
+            accuracy.append(labels[ID] == prediction[ID])
+    else:
+        accuracy = [False]
+    print('accuracy: ', accuracy)
+            
+    labeler.dashboard.update(total=total, accuracy=accuracy)
+    print(f'exiting batch{batchCounter}')
 
 #%% Active Learning Loop
 

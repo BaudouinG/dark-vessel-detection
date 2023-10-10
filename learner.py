@@ -40,6 +40,17 @@ class Learner():
         
         self.model.fit(self.data[self.isLabeled()], self.labels[self.isLabeled()])
     
+    def predict(self, data=None):
+        
+        if data is None:
+            data = self.data
+            
+        return self.model.predict(data)
+    
+    def getPositiveTotal(self):
+        
+        return np.sum(self.predict())
+    
     def isLabeled(self):
         
         validLabels = [0.0, 1.0]
