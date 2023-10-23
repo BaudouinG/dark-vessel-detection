@@ -32,7 +32,7 @@ reappearIcon = folium.features.CustomIcon(icon_image='Markers/v.png', icon_size=
 
 class Labeler():
     
-    def __init__(self, batchSize=None):
+    def __init__(self):
         
         # "Backend" params
         self.preventLabeling = pn.widgets.Toggle(value=True)
@@ -61,7 +61,7 @@ class Labeler():
         self.foliumMap = pn.bind(self.getFoliumMap, self.IDSelector, self.previousSlider, self.nextSlider)
         
         # "Active Learning" params
-        self.batchSize = batchSize
+        self.batchSize = None
         self.batch = None
         self.batchProgress = None
         self.defaultStatus = 'Not currently labeling'
@@ -91,6 +91,10 @@ class Labeler():
         else:
             html = f"Batch {self.batch}, labeling {self.batchProgress}/{self.batchSize}"
         self.status.object = html
+    
+    def setBatchSize(self, batchSize):
+        
+        self.batchSize = batchSize
     
     # "Backend" Methods
     def toggleLabeling(self, event):
@@ -307,7 +311,7 @@ class Dashboard(pn.layout.base.WidgetBox):
             self.accuracyHistory.append(sum(accuracy) / len(accuracy))
         self.clear()
         md = f'**Labeled Gaps:** {self.labeledGaps} ({self.OOSGaps} OOS, {self.otherGaps} Others)\n\n---\n'
-        md += f'**On-Off Switch Prediction:** {self.totalOOS}/{self.dataSize}'
+        md += f'**On-Off Switch Prediction:** {int(self.totalOOS)}/{self.dataSize}'
         self.append(pn.pane.Markdown(md, sizing_mode='stretch_width'))
         self.append(self.predictionGraph())
         self.append(pn.pane.Markdown('---\n**Prediction Accuracy**', sizing_mode='stretch_width'))
@@ -321,7 +325,7 @@ class Dashboard(pn.layout.base.WidgetBox):
         ax.set_xlim(0, len(self.predictionHistory) - 1)
         #ax.set_xticks(np.arange(len(self.predictionHistory)))
         ax.set_xlabel('Batch Number')
-        ax.set_ylabel('Predicted OOS (%)')
+        ax.set_ylabel('OOS (%)')
         plt.close(fig)
         return pn.pane.Matplotlib(fig, tight=True, format='svg', sizing_mode='stretch_width')
     

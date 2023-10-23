@@ -1,17 +1,18 @@
 from learner import Learner
 from labeler import Labeler
+from Archives.archive import Archive
 
-#%% Instantiations and Definitions
+#%% Instantiations
 
-batchSize = 5
+learner = Learner(initialBatchSize=10, batchSize=5)
+labeler = Labeler()
+archive = Archive(directory='Archives/Tests')
 
-learner = Learner(seed=None, batchSize=batchSize)
-labeler = Labeler(batchSize=batchSize)
+#%% Definitions
 
 batchCounter = 0
 
 def cycle(queryMethod, batchCounter):
-    print(f'entering batch{batchCounter}')
     
     labels = {}
     query = queryMethod()
@@ -23,29 +24,29 @@ def cycle(queryMethod, batchCounter):
     
     for i in range(len(query)):
         answer = labeler.askLabel(query[i], batch=batchCounter, batchProgress=i+1)
+        archive.save(answer)
         labels.update(answer)
     learner.setLabels(labels)
     learner.fitModel()
     
     total = learner.getPositiveTotal()
-    print('total: ', total)
     if batchCounter > 1:
         accuracy = []
         for ID in labels.keys():
             accuracy.append(labels[ID] == prediction[ID])
     else:
         accuracy = [False]
-    print('accuracy: ', accuracy)
             
     labeler.dashboard.update(total=total, accuracy=accuracy)
-    print(f'exiting batch{batchCounter}')
 
 #%% Active Learning Loop
 
 batchCounter += 1
+labeler.setBatchSize(learner.initialBatchSize)
 cycle(learner.getRandomQuery, batchCounter)
 
 while True:
     
    batchCounter += 1
+   labeler.setBatchSize(learner.batchSize)
    cycle(learner.getQuery, batchCounter)

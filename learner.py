@@ -14,14 +14,21 @@ FEATURES = ['darkduration', 'darkspeed', 'deviationCos', 'deviationSin',
             'disappearEdgeRatio', 'reappearBearingCos', 'reappearBearingSin',
             'reappearDistance', 'reappearEdgeRatio']
 BATCH_SIZE = 5
+INITIAL_BATCH_SIZE = 5
 MISSING_LABEL = np.nan
-SEED = 0
+SEED = None
 
 class Learner():
     
-    def __init__(self, batchSize=BATCH_SIZE, features=FEATURES, missingLabel=MISSING_LABEL, seed=SEED):
+    def __init__(self,
+                 batchSize=BATCH_SIZE,
+                 initialBatchSize=INITIAL_BATCH_SIZE,
+                 features=FEATURES,
+                 missingLabel=MISSING_LABEL,
+                 seed=SEED):
         
         self.batchSize = batchSize
+        self.initialBatchSize = initialBatchSize
         data = build([load(name) for name in features])
         data = StandardScaler().fit_transform(data)
         self.data = data
@@ -62,7 +69,7 @@ class Learner():
     
     def getRandomQuery(self):
         
-        return self.randomGenerator.integers(0, len(self.data), self.batchSize)
+        return self.randomGenerator.integers(0, len(self.data), self.initialBatchSize)
     
     def getQuery(self):
         
