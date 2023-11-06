@@ -279,7 +279,7 @@ class Labeler():
         #NB: both "previousSlider" and "nextSlider" values are unused but trigger map updates
         
         m = folium.Map(tiles="cartodb positron", height='100%', 
-                       location=(48, -5), zoom_start=7, control_scale=True, prefer_canvas=True)
+                       location=(48, -5), zoom_start=9, control_scale=True, prefer_canvas=True)
         for mapFeature in self.plot(self.data()):
             mapFeature.add_to(m)
             
