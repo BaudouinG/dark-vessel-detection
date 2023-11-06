@@ -191,3 +191,5 @@ Features/disappearBearingSin.csv
 Datasets/static.csv
 active-learning.py
 Archives/Tests/1699021084_1502213.csv
+Features/localrate.csv
+Features/overallrate.csv

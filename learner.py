@@ -1,7 +1,7 @@
 import numpy as np
 import warnings
 
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.preprocessing import StandardScaler
 
 from cardinal.zhdanov2019 import TwoStepKMeansSampler
@@ -9,14 +9,16 @@ from cardinal.zhdanov2019 import TwoStepKMeansSampler
 from features import load, build
 
 
+
 FEATURES = ['darkduration', 'darkspeed', 'deviationCos', 'deviationSin',
             'disappearBearingCos', 'disappearBearingSin', 'disappearDistance',
             'disappearEdgeRatio', 'reappearBearingCos', 'reappearBearingSin',
-            'reappearDistance', 'reappearEdgeRatio']
+            'reappearDistance', 'reappearEdgeRatio', 'localrate', 'overallrate']
 BATCH_SIZE = 5
-INITIAL_BATCH_SIZE = 5
+INITIAL_BATCH_SIZE = 17
 MISSING_LABEL = np.nan
 SEED = None
+
 
 class Learner():
     
@@ -32,10 +34,11 @@ class Learner():
         data = build([load(name) for name in features])
         data = StandardScaler().fit_transform(data)
         self.data = data
+        
         self.labels = np.full(shape=len(data), fill_value=missingLabel)
         
         self.randomGenerator = np.random.default_rng(seed)
-        self.model = RandomForestClassifier(random_state=seed, verbose=False)
+        self.model = GradientBoostingClassifier()
         self.sampler = TwoStepKMeansSampler(3, self.model, self.batchSize)
     
     def setLabels(self, labels):
