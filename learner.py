@@ -38,7 +38,7 @@ class Learner():
         self.labels = np.full(shape=len(data), fill_value=missingLabel)
         
         self.randomGenerator = np.random.default_rng(seed)
-        self.model = GradientBoostingClassifier()
+        self.model = GradientBoostingClassifier(loss='exponential')
         self.sampler = TwoStepKMeansSampler(3, self.model, self.batchSize)
     
     def setLabels(self, labels):
